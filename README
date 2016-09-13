@@ -64,6 +64,7 @@ Modifying fractals:
        
 Modifying view:       
   h: Reset zoom level
+  f: Toggle fullscreen
   Left mouse button and drag: Move view frame
   Right mouse button and drag vertically: Zoom in/out
   

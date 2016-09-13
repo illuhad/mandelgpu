@@ -156,6 +156,7 @@ void usage()
             << "  1: Select Mandelbrot kernel\n"
             << "  2: Select Julia kernel\n"
             << "  h: Reset zoom level\n"
+            << "  f: Toggle fullscreen\n"
             << "  a/d: Decrease/increase real part of\n"
             << "     constant for the Julia kernel\n"
             << "  s/w: Decrease/increase imaginary part\n"
