@@ -64,6 +64,7 @@ public:
   void save_png_screenshot(const std::string& name) const;
 private:
   gl_renderer();
+  void post_redisplay();
   
   int _width;
   int _height;
@@ -72,6 +73,11 @@ private:
   bool _is_fullscreen;
   
   friend void glut_reshape_func(int,int);
+  friend void glut_display_func();
+  friend void glut_keyboard_func(unsigned char c, int x, int y);
+  friend void glut_mouse_func(int button, int state, int x, int y);
+  friend void glut_motion_func(int x, int y);
+  friend void glut_idle_func();
 };
 
 #endif

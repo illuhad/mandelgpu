@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cassert>
+
 #include "kernel.hpp"
 #include "cuda_error.hpp"
 
@@ -78,26 +80,6 @@ uchar3 hsv_to_rgb(const float h,
   return result;
 }
 
-/*
-template<unsigned n>
-__device__ __forceinline__ arithmetic_type2 complex_power(const arithmetic_type2 z)
-{
-  arithmetic_type2 z_current = z;
-  
-  for(int i = 0; i < n - 1; ++i)
-  {
-    arithmetic_type2 old = z_current;
-  }
-  
-  return z_current;
-}
-
-template<>
-__device__ __forceinline__ arithmetic_type2 complex_power<1>(const arithmetic_type2 z)
-{
-  return z;
-}
- * */
 
 __device__
 uchar3 color_scheme(int num_iterations, int max_iterations)
@@ -117,6 +99,7 @@ uchar3 color_scheme(int num_iterations, int max_iterations)
   return color;
 }
 
+
 template<typename Arithmetic_type, typename Arithmetic_type2>
 __global__
 void mandelgpu(Arithmetic_type dx, Arithmetic_type center_x, Arithmetic_type center_y,
@@ -124,7 +107,6 @@ void mandelgpu(Arithmetic_type dx, Arithmetic_type center_x, Arithmetic_type cen
 {
   int gid_x = threadIdx.x + blockIdx.x * blockDim.x;
   int gid_y = threadIdx.y + blockIdx.y * blockDim.y;
-  
   
   
   for(int px_x = gid_x; px_x < npx_x; px_x += blockDim.x * gridDim.x)
@@ -163,8 +145,8 @@ void mandelgpu(Arithmetic_type dx, Arithmetic_type center_x, Arithmetic_type cen
       pixels[px_y * npx_x + px_x] = color;
     }
   }
-  
 }
+
 
 template<typename Arithmetic_type, typename Arithmetic_type2>
 __global__
@@ -217,6 +199,140 @@ void juliagpu(Arithmetic_type dx, Arithmetic_type center_x, Arithmetic_type cent
   }
   
 }
+
+template<typename Arithmetic_type, typename Arithmetic_type2>
+__device__ __forceinline__
+void complex_mult(Arithmetic_type2 a, Arithmetic_type2 b, Arithmetic_type2* out)
+{
+  out->x  = a.x * b.x;
+  out->x -= a.y * b.y;
+  
+  out->y  = a.x * b.y;
+  out->y += a.y * b.x;
+}
+
+template<typename Arithmetic_type, typename Arithmetic_type2>
+__device__ __forceinline__
+void complex_scale_add(Arithmetic_type2* out, Arithmetic_type2 s, Arithmetic_type2 b)
+{
+  out->x += s.x * b.x;
+  out->x -= s.y * b.y;
+  
+  out->y += s.x * b.y;
+  out->y += s.y * b.x;
+}
+
+
+template<typename Arithmetic_type, typename Arithmetic_type2, int Polynomial_degree>
+__global__
+void polynomial_kernel(Arithmetic_type dx, 
+                   Arithmetic_type center_x, Arithmetic_type center_y,
+                   uchar3* pixels, int npx_x, int npx_y,
+                   Arithmetic_type2* coefficients,
+                   Arithmetic_type2* coordinate_contrib_to_coefficients,
+                   Arithmetic_type2 initial_value,
+                   Arithmetic_type2  coordinate_contrib_to_initial_value)
+{
+  int gid_x = threadIdx.x + blockIdx.x * blockDim.x;
+  int gid_y = threadIdx.y + blockIdx.y * blockDim.y;
+  
+  Arithmetic_type2 effective_coefficients [Polynomial_degree + 1];
+  Arithmetic_type2 z_powers[Polynomial_degree];
+  
+  for(int px_x = gid_x; px_x < npx_x; px_x += blockDim.x * gridDim.x)
+  {
+    for(int px_y = gid_y; px_y < npx_y; px_y += blockDim.y * gridDim.y)
+    {
+      int iter_counter = 0;
+      
+      Arithmetic_type2 coord;
+      coord.x = center_x + (px_x - npx_x / 2) * dx;
+      coord.y = center_y + (px_y - npx_y / 2) * dx;
+      
+      Arithmetic_type2 z = initial_value;
+      complex_scale_add(&z, coordinate_contrib_to_initial_value, coord);
+      
+      // Initialise coefficients for pixel
+      for(int i = 0; i < Polynomial_degree + 1; ++i)
+      {
+        effective_coefficients[i] = coefficients[i];
+        complex_scale_add(&effective_coefficients[i], 
+                          coordinate_contrib_to_coefficients[i], coord);
+      }
+      
+      Arithmetic_type new_z;
+#pragma unroll 128
+      for(int i = 0; i < maxiterations; ++i)
+      {
+        new_z = effective_coefficients[0];
+        
+        // Generate powers
+        z_powers[0] = z;
+        complex_scale_add(&new_z, z, effective_coefficients[1]);
+        
+        for(int i = 1; i < Polynomial_degree; ++i)
+        {
+          complex_mult(z_powers[i-1], z, &z_powers[i]);
+          complex_scale_add(&new_z, z_powers[i], effective_coefficients[i + 1]);
+        }
+        
+        z = new_z;
+        
+        Arithmetic_type norm2 = z.x * z.x;
+        norm2 += z.y * z.y;
+
+        if(norm2 > limit)
+          break;
+        
+        ++iter_counter;
+      }
+
+      uchar3 color = color_scheme(iter_counter, maxiterations);
+      pixels[px_y * npx_x + px_x] = color;
+    }
+  }
+}
+
+cuda_polynomial_coefficients::cuda_polynomial_coefficients(int degree)
+: _coefficients(degree + 1), _float_coefficients(degree + 1),
+  _device_float_coefficients(nullptr),
+  _device_double_coefficients(nullptr)
+{
+  cudaMalloc(&_device_float_coefficients, 2 * (degree + 1) * sizeof(float));
+  cudaMalloc(&_device_double_coefficients, 2 * (degree + 1) * sizeof(double));
+  
+  check_cuda_error("Could not allocate device memory!");
+}
+
+cuda_polynomial_coefficients::~cuda_polynomial_coefficients()
+{
+  if(_device_float_coefficients)
+    cudaFree(_device_float_coefficients);
+  
+  if(_device_double_coefficients)
+    cudaFree(_device_double_coefficients);
+}
+
+void cuda_polynomial_coefficients::commit()
+{
+  assert(_device_float_coefficients);
+  assert(_device_double_coefficients);
+  
+  for(std::size_t i = 0; i < _coefficients.size(); ++i)
+  {
+    _float_coefficients[i].real = static_cast<float>(_coefficients[i].real);
+    _float_coefficients[i].imag = static_cast<float>(_coefficients[i].imag);
+  }
+  
+  cudaMemcpy(_device_float_coefficients, _float_coefficients.data(), 
+              2 * _coefficients.size() * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(_device_double_coefficients, _coefficients.data(), 
+              2 * _coefficients.size() * sizeof(double), cudaMemcpyHostToDevice);
+  
+  check_cuda_error("Could not transfer coefficients to device!");
+}
+
+
 
 template<typename Arithmetic_type, typename Arithmetic_type2>
 performance_estimator::result run_kernel(unsigned char* pixels, 

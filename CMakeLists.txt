@@ -33,14 +33,9 @@ find_package(PNG REQUIRED)
 
 include_directories(${PROJECT_BINARY_DIR} ${OPENGL_INCLUDE_DIRS}  ${GLUT_INCLUDE_DIRS} ${PNG_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS})
 
-#set(CUDA_NVCC_FLAGS_RELEASE -O3;--use_fast_math;--restrict;-arch=sm_30)
-set(CUDA_NVCC_FLAGS_RELEASE -O3;--restrict;-arch=sm_30)
+set(CUDA_NVCC_FLAGS_RELEASE -O3)
 	
 cuda_add_executable(mandelgpu image.cpp gl_renderer.cpp cuda_error.cu cuda_gl.cu mandelgpu.cpp kernel.cu)
-
-if(USE_DOUBLE_PRECISION)
-	add_definitions(-DWITH_DOUBLE_PRECISION)
-endif(USE_DOUBLE_PRECISION)
 
 
 target_link_libraries (mandelgpu ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${PNG_LIBRARY} ${GLEW_LIBRARIES})

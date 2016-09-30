@@ -135,7 +135,7 @@ void build_mapping_string(kernel_type k, double c0_x, double c0_y,
   else
   {
     std::stringstream sstr;
-    sstr << "Active kernel: Julia: z_(n+1) = z_n^2 + " << c0_x << " + i*("<<c0_y<<")";
+    sstr << "Active kernel: Julia: z_(n+1) = z_n^2 + " << simple_complex<double>(c0_x, c0_y);
     out = sstr.str();
   }
 }
@@ -144,7 +144,7 @@ void build_viewport_string(double center_x, double center_y,
                            double size_x, double dx, std::string& out)
 {
   std::stringstream sstr;
-  sstr << "Viewport center: " << center_x << " + i*(" << center_y << "), pixel size: "
+  sstr << "Viewport center: " << simple_complex<double>(center_x, center_y) << ", pixel size: "
        << dx;
   out = sstr.str();
 }

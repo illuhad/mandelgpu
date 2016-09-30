@@ -42,13 +42,13 @@ void glut_display_func()
 { 
   display_func();
   glutSwapBuffers();
-  glutPostRedisplay();
+  gl_renderer::instance().post_redisplay();
 }
 
 void glut_keyboard_func(unsigned char c, int x, int y)
 {
   keyboard_func(c,x,y);
-  glutPostRedisplay();
+  gl_renderer::instance().post_redisplay();
 }
 
 void glut_reshape_func(int width, int height)
@@ -56,26 +56,26 @@ void glut_reshape_func(int width, int height)
   gl_renderer::instance()._width = width;
   gl_renderer::instance()._height = height;
   reshape_func(width, height);
-  
-  glutPostRedisplay();
+
+  gl_renderer::instance().post_redisplay();
 }
 
 void glut_mouse_func(int button, int state, int x, int y)
 {
   mouse_func(button, state, x, y);
-  glutPostRedisplay();
+  gl_renderer::instance().post_redisplay();
 }
  
 void glut_motion_func(int x, int y)
 {
   motion_func(x,y);
-  glutPostRedisplay();
+  gl_renderer::instance().post_redisplay();
 }
 
 void glut_idle_func()
 {
   idle_func();
-  glutPostRedisplay();
+  gl_renderer::instance().post_redisplay();
 }
 
 gl_renderer::gl_renderer()
@@ -86,7 +86,8 @@ void gl_renderer::init(const std::string& title,
               std::size_t width, std::size_t height,
               int argc, char** argv)
 {
-  assert(_window_handle == 0);
+  if(this->_window_handle)
+    this->close();
   
   this->_width = width;
   this->_height = height;
@@ -196,8 +197,13 @@ void gl_renderer::save_png_screenshot(const std::string& name) const
 
 }
 
+void gl_renderer::post_redisplay()
+{
+  if(this->_window_handle)
+    glutPostRedisplay();
+}
+
 gl_renderer::~gl_renderer()
 {
-  this->close();
 }
 
