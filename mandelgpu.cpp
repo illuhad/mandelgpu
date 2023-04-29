@@ -34,9 +34,9 @@ std::ostream& operator<<(std::ostream& lhs, const performance_estimator::result&
 {
   lhs.precision(2);
   lhs << std::fixed;
-  lhs << "Bandwidth: " << rhs.bandwidth << " GB/s. Perf: " 
+  lhs << "Bandwidth: " << rhs.bandwidth << " GB/s. Perf: "
       << rhs.flops << " GFlops (" << 1./rhs.time << " FPS)";
-  
+
   return lhs;
 }
 
@@ -46,21 +46,21 @@ public:
   status_message()
   : _max_length(1)
   {}
-  
+
   void update(const std::string& message)
   {
     if(message.size() > _max_length)
       _max_length = message.size();
-    
+
     std::cout << '\r' << message;
-    
-    for(int i = 0; i < (static_cast<int>(_max_length) 
+
+    for(int i = 0; i < (static_cast<int>(_max_length)
                        -static_cast<int>(message.size())); ++i)
       std::cout << " ";
-    
+
     _current_display = message;
   }
-  
+
   const std::string& get_current_display() const
   {
     return _current_display;
@@ -71,7 +71,7 @@ private:
 };
 
 
- 
+
 class program_state_output
 {
 public:
@@ -83,33 +83,33 @@ public:
     std::cout << initial_mapping_msg << std::endl;
     std::cout << initial_viewport_msg << std::endl;
   }
-  
+
   void update_performance(const std::string& performance)
   {
     move_up(); move_up(); move_up();
-    
+
     _performance_msg.update(performance);
     std::cout << std::endl;
     std::cout << _mapping_msg.get_current_display() << std::endl;
     std::cout << _viewport_msg.get_current_display() << std::endl;
   }
-  
+
   void update_mapping(const std::string& mapping_msg)
   {
     move_up(); move_up();
-    
+
     _mapping_msg.update(mapping_msg);
-    
+
     std::cout << std::endl;
     std::cout << _viewport_msg.get_current_display() << std::endl;
   }
-  
+
   void update_viewport(const std::string& viewport_msg)
   {
      move_up();
-    
+
     _viewport_msg.update(viewport_msg);
-    
+
     std::cout << std::endl;
   }
 private:
@@ -117,7 +117,7 @@ private:
   {
     std::cout << "\033[F";
   }
-  
+
   status_message _performance_msg;
   status_message _mapping_msg;
   status_message _viewport_msg;
@@ -140,7 +140,7 @@ void build_mapping_string(kernel_type k, double c0_x, double c0_y,
   }
 }
 
-void build_viewport_string(double center_x, double center_y, 
+void build_viewport_string(double center_x, double center_y,
                            double size_x, double dx, std::string& out)
 {
   std::stringstream sstr;
@@ -171,70 +171,70 @@ void usage()
 int main(int argc, char* argv[])
 {
   usage();
-  
+
   program_state_output state("*** Performance estimate unavailable ***",
                              "*** No mapping selected ***",
                              "*** No active viewport ***");
-  
+
   std::size_t w = 1024;
   std::size_t h = 1024;
-  
+
   gl_renderer::instance().init("mandelgpu", w, h, argc, argv);
   cuda_gl::init_environment();
-  
+
   cuda_gl cgl(&gl_renderer::instance());
-  
+
   double size_x = 1.0;
   double center_x = 0.0;
   double center_y = 0.0;
   double c0_x = 0.1;
   double c0_y = 0.5;
-  double dx = size_x / 
+  double dx = size_x /
                static_cast<double>(gl_renderer::instance().get_width());
-  
+  int picIndex = 0;
   kernel_type kernel = MANDELBROT;
   precision arithmetic_precision = SINGLE;
-  
+
   std::string mapping_str;
   build_mapping_string(kernel, c0_x, c0_y, mapping_str);
   state.update_mapping(mapping_str);
-  
+
   std::string viewport_str;
   build_viewport_string(center_x, center_y, size_x, dx, viewport_str);
   state.update_viewport(viewport_str);
-  
-  auto kernel_executor = 
+
+  auto kernel_executor =
   [&](unsigned char* pixels, std::size_t width, std::size_t height)
   {
     performance_estimator::result r =
-      run_kernel(pixels, 
-                 width, height, size_x, 
-                 center_x, center_y,  
-                 c0_x, c0_y, 
-                 kernel, 
+      run_kernel(pixels,
+                 width, height, size_x,
+                 center_x, center_y,
+                 c0_x, c0_y,
+                 kernel,
                  arithmetic_precision);
-    
+
     std::stringstream sstr;
     sstr << r;
     if(arithmetic_precision == SINGLE)
       sstr << " [single precision]";
     else if(arithmetic_precision == DOUBLE)
       sstr << " [double precision]";
-              
+
     state.update_performance(sstr.str());
-    
+
     build_viewport_string(center_x, center_y, size_x, dx, viewport_str);
     state.update_viewport(viewport_str);
   };
-  
+
   gl_renderer::instance().on_display([&cgl, &kernel_executor]()
   {
     cgl.display(kernel_executor);
   });
-  
+
   int old_x = 0;
   int old_y = 0;
-  
+
   bool left_button_down = false;
   bool right_button_down = false;
   gl_renderer::instance().on_mouse(
@@ -259,7 +259,7 @@ int main(int argc, char* argv[])
         right_button_down = false;
     }
   });
-  
+
   gl_renderer::instance().on_motion(
   [&](int x, int y)
   {
@@ -274,18 +274,18 @@ int main(int argc, char* argv[])
       if(size_x < 0.0f)
         size_x = 1.e-5f;
     }
-    
-    dx = size_x / 
+
+    dx = size_x /
         static_cast<double>(gl_renderer::instance().get_width());
     if(dx < 3.e-8)
       arithmetic_precision = DOUBLE;
     else
       arithmetic_precision = SINGLE;
-    
+
     old_x = x;
     old_y = y;
   });
-  
+
   gl_renderer::instance().on_keyboard(
   [&](unsigned char c, int x, int y)
   {
@@ -319,7 +319,7 @@ int main(int argc, char* argv[])
     case 'h':
       size_x = 1.0;
       arithmetic_precision = SINGLE;
-      dx = size_x / 
+      dx = size_x /
         static_cast<double>(gl_renderer::instance().get_width());
       break;
     case 'f':
@@ -327,21 +327,25 @@ int main(int argc, char* argv[])
       break;
     case 'p':
       // Write image
-      gl_renderer::instance().save_png_screenshot("mandelgpu.png");
+      std::string png1 = "mandelgpu";
+      std::string pngIndex = std::to_string(picIndex);
+      std::string png2 = ".png";
+      gl_renderer::instance().save_png_screenshot(png1 + pngIndex + png2); // MARKED HERE ------------------------------------------------------------------
+      picIndex++;
       break;
     }
-    
+
     build_mapping_string(kernel, c0_x, c0_y, mapping_str);
     state.update_mapping(mapping_str);
   });
-  
+
   gl_renderer::instance().on_reshape([&](int width, int height)
   {
-    dx = size_x / 
+    dx = size_x /
             static_cast<double>(gl_renderer::instance().get_width());
     cgl.rebuild_buffers();
   });
-  
+
   gl_renderer::instance().render_loop();
 
   return 0;
