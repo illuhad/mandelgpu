@@ -330,7 +330,7 @@ int main(int argc, char* argv[])
       std::string png1 = "mandelgpu-";
       std::string pngIndex = std::to_string(std::time(0));
       std::string png2 = ".png";
-      gl_renderer::instance().save_png_screenshot(png1 + pngIndex + png2); // MARKED HERE ------------------------------------------------------------------
+      gl_renderer::instance().save_png_screenshot(png1 + pngIndex + png2);
       picIndex++;
       break;
     }
