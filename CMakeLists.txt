@@ -38,7 +38,7 @@ set(CUDA_NVCC_FLAGS_RELEASE -O3)
 cuda_add_executable(mandelgpu image.cpp gl_renderer.cpp cuda_error.cu cuda_gl.cu mandelgpu.cpp kernel.cu)
 
 
-target_link_libraries (mandelgpu ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${PNG_LIBRARY} ${GLEW_LIBRARIES})
+target_link_libraries (mandelgpu ${OPENGL_LIBRARIES} ${GLUT_LIBRARY} ${PNG_LIBRARY} ${GLEW_LIBRARIES} -lglut)
 
 
 
